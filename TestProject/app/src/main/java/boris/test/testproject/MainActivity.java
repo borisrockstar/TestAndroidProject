@@ -4,20 +4,31 @@ import android.accounts.AccountManager;
 import android.accounts.AccountManagerCallback;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Observable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.telecom.Call;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
+import org.json.JSONObject;
+
+import boris.test.testproject.ApiManager.ApiService;
 import boris.test.testproject.ApiManager.BackgroundWorkTask;
 import boris.test.testproject.ApiManager.WebServiceMethods;
 import boris.test.testproject.model.SafeJSONObject;
+import boris.test.testproject.model.inputData;
+import boris.test.testproject.model.track;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -64,26 +75,39 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void OnShowPinCode(View v){
+
         new BackgroundWorkTask(this, "Getting PinCode"){
-            String authKey= "";
             @Override
             protected Void doInBackground(Void... params) {
                 // TODO Auto-generated method stub
                 //Call Webservice//
 
                 try {
-                    WebServiceMethods methods = new WebServiceMethods();
-                    SafeJSONObject result = methods.createTrack();
-                    if(result == null)
-                        authKey = "";
-                    else{
-                        String pinString = result.getString("pin");
-                        String tokenString = result.getString("token");
-                        SaveTokenToAccountManager(tokenString);
-                        DisplayPinCode(pinString);
-                    }
+                    Retrofit retrofit = new Retrofit.Builder()
+                            .baseUrl("http://bebetrack.com")
+                            .addConverterFactory(GsonConverterFactory.create())
+                            .build();
+
+                    ApiService service = retrofit.create(ApiService.class);
+                    inputData data = new inputData("123456789", "123");
+                    retrofit2.Call<track> result = service.getPinCode(data); //service.getPinCode("123456789", "123");
+
+                    result.enqueue(new Callback<track>() {
+                        @Override
+                        public void onResponse(retrofit2.Call<track> call, Response<track> response) {
+                                if(response != null){
+                                    SaveTokenToAccountManager(response.body().getToken());
+                                    DisplayPinCode(response.body().getPinCode());
+                                }
+                        }
+
+                        @Override
+                        public void onFailure(retrofit2.Call<track> call, Throwable t) {
+
+                        }
+                    });
                 }catch (Exception e){
-                    authKey = "";
+
                 }
                 return null;
             }
